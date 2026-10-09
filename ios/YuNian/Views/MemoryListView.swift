@@ -39,24 +39,7 @@ struct MemoryListView: View {
     var body: some View {
         // 第 133 轮：改用 YuNianGlassPage（对照 Android GlassTopBar），
         // 不再用系统 NavigationBar。
-        //
-        // ⚠️ 交互修复：此前这里另有一个 `.toolbar { ToolbarItem(...) }` 放
-        // 「显示已删除」。该页由 RootView 的 NavigationStack push 进来，
-        // 声明 toolbar item 会让系统导航栏重新出现 —— 于是同屏出现
-        // 「原生栏（返回钮 + 显示已删除）」与「玻璃栏（返回钮 + 记忆）」两层。
-        // 现改为走 YuNianGlassPage 自身的 `trailing` 槽（与 ChannelConfigView
-        // 的「保存」同一条路径），并删掉 `.toolbar`。
-        YuNianGlassPage(
-            title: "记忆",
-            onBack: { dismiss() },
-            trailing: {
-                Button(showDeleted ? "隐藏已删除" : "显示已删除") {
-                    showDeleted.toggle()
-                }
-                .font(.caption)
-                .foregroundStyle(colors.primary)
-            }
-        ) {
+        YuNianGlassPage(title: "记忆", onBack: { dismiss() }) {
             VStack(alignment: .leading, spacing: YuNianTheme.Space.standard) {
 
                 // 统计行 —— GlassCard 的 Metric 三态（GlassCard.kt:38-47）
@@ -109,6 +92,15 @@ struct MemoryListView: View {
             }
             .padding(.horizontal, YuNianTheme.Space.page)
             .padding(.top, YuNianTheme.Space.standard)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(showDeleted ? "隐藏已删除" : "显示已删除") {
+                    showDeleted.toggle()
+                }
+                .font(.caption)
+                .foregroundStyle(colors.primary)
+            }
         }
         .task { reload() }
     }
