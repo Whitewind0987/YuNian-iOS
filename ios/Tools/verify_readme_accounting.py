@@ -20,6 +20,7 @@ README 第一段里形如 `N 文件 / M 行（Swift A / Python B / Markdown C）
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -33,17 +34,22 @@ EXTS = {".swift", ".py", ".md", ".plist", ".json", ".yml", ".sh", ".png"}
 def actual() -> tuple[int, int, int, int, int, int]:
     files = lines = 0
     by_ext: Counter[str] = Counter()
-    for root in ("ios", "scripts", ".github"):
-        base = REPO_ROOT / root
-        if not base.exists():
+    # 只统计 Git 索引中的交付文件；忽略本地未跟踪文件及 CI 临时生成物。
+    # --fix 在开发机与干净的 GitHub runner 上必须得到同一份统计。
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", "ios", "scripts", ".github"],
+        cwd=REPO_ROOT,
+    )
+    for raw in tracked.split(b"\0"):
+        if not raw:
             continue
-        for p in base.rglob("*"):
-            if not p.is_file() or "Generated" in str(p) or p.suffix not in EXTS:
-                continue
-            files += 1
-            by_ext[p.suffix] += 1
-            if p.suffix != ".png":
-                lines += len(p.read_text(encoding="utf-8", errors="ignore").splitlines())
+        p = REPO_ROOT / raw.decode("utf-8")
+        if not p.is_file() or "Generated" in p.parts or p.suffix not in EXTS:
+            continue
+        files += 1
+        by_ext[p.suffix] += 1
+        if p.suffix != ".png":
+            lines += len(p.read_text(encoding="utf-8", errors="ignore").splitlines())
     return files, lines, by_ext[".swift"], by_ext[".py"], by_ext[".md"], by_ext[".json"]
 
 
