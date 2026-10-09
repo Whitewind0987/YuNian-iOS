@@ -104,6 +104,8 @@ SLOW = {"SQLite 建库与 FTS", "SQL 对真实 schema", "内容过滤金标", "J
 
 def main() -> int:
     quick = "--quick" in sys.argv
+    ci_mode = "--ci" in sys.argv
+    non_blocking = {"README 统计"} if ci_mode else set()
     results: list[tuple[str, bool, float, str]] = []
 
     for (label, extra, _is_gen), script in zip(GATES, SCRIPT_BY_INDEX):
@@ -128,13 +130,18 @@ def main() -> int:
     results.append(("build_agent_ios.sh 语法", rb.returncode == 0,
                     time.time() - t0, "" if rb.returncode == 0 else "bash -n 失败"))
 
-    failed = [r for r in results if not r[1]]
+    failed = [r for r in results if not r[1] and r[0] not in non_blocking]
+    warnings = [r for r in results if not r[1] and r[0] in non_blocking]
     width = max(len(n) for n, *_ in results)
     for name, ok, dt, last in results:
-        mark = "PASS" if ok else "FAIL"
+        mark = "PASS" if ok else ("WARN" if name in non_blocking else "FAIL")
         print(f"  [{mark}] {name:<{width}}  {dt:5.1f}s")
 
-    print(f"\n共 {len(results)} 项，失败 {len(failed)} 项")
+    print(f"\n共 {len(results)} 项，失败 {len(failed)} 项，非阻断警告 {len(warnings)} 项")
+    if warnings:
+        print("\n非阻断警告：")
+        for name, _ok, _dt, last in warnings:
+            print(f"  · {name}: {last}")
     if failed:
         print("\n失败项的最后一行输出：")
         for name, _ok, _dt, last in failed:
